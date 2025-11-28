@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅遊必買清單 App</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Noto Sans 讓中文字體更美觀 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .scroll-area {
+            max-height: calc(100vh - 360px); /* 調整以適應不同螢幕大小 */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="max-w-4xl mx-auto bg-white shadow-2xl rounded-xl p-6 md:p-10">
+
+            <!-- 標題與使用者資訊 -->
+            <header class="mb-8 border-b pb-4">
+                <h1 class="text-3xl font-extrabold text-blue-600 mb-2">🇯🇵 旅遊必買清單 App</h1>
+                <p class="text-gray-500 text-sm">
+                    即時清單管理與日幣換算台幣功能。
+                </p>
+                <div id="user-info" class="text-xs text-gray-400 mt-2">
+                    <!-- User ID will be displayed here -->
+                </div>
+            </header>
+
+            <!-- 匯率設定與總覽 -->
+            <section class="mb-8 p-4 bg-yellow-50 rounded-lg shadow-inner">
+                <h2 class="text-xl font-semibold text-yellow-700 mb-3">匯率設定與消費總覽</h2>
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                    <!-- 匯率輸入 -->
+                    <div class="flex-grow">
+                        <label for="exchange-rate" class="block text-sm font-medium text-gray-700">JPY 兌 TWD 匯率 (1 JPY = ? TWD)</label>
+                        <div class="mt-1 flex rounded-md shadow-sm">
+                            <input type="number" id="exchange-rate" value="0.22" step="0.001"
+                                class="flex-1 block w-full rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 p-2 border"
+                                placeholder="0.22">
+                            <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                                TWD
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 總花費計算 -->
+                    <div class="flex-grow">
+                        <p class="text-sm font-medium text-gray-700">已購買總花費 (TWD)</p>
+                        <p id="total-spent" class="text-2xl font-bold text-red-500 mt-1 p-2 rounded-md bg-white border border-red-200">
+                            TWD 0
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- 新增項目表單 -->
+            <section class="mb-8 p-6 bg-blue-50 rounded-lg shadow">
+                <h2 class="text-xl font-semibold text-blue-700 mb-4">新增購物項目</h2>
+                <form id="add-item-form" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <!-- 項目名稱 -->
+                        <div>
+                            <label for="item-name" class="block text-sm font-medium text-gray-700">名稱/品項</label>
+                            <input type="text" id="item-name" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        </div>
+                        <!-- 日幣價格 -->
+                        <div>
+                            <label for="item-jpy" class="block text-sm font-medium text-gray-700">價格 (JPY)</label>
+                            <input type="number" id="item-jpy" required min="1"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        </div>
+                        <!-- 預計購買/行程日 -->
+                        <div>
+                            <label for="item-day" class="block text-sm font-medium text-gray-700">預計行程日 (例如: Day 1)</label>
+                            <input type="text" id="item-day" placeholder="Day 1" value="Day 1"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        </div>
+                        <!-- 數量 -->
+                        <div>
+                            <label for="item-quantity" class="block text-sm font-medium text-gray-700">數量</label>
+                            <input type="number" id="item-quantity" value="1" min="1"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        </div>
+                    </div>
+                    
+                    <!-- 圖片網址 (新增) -->
+                    <div>
+                        <label for="item-image-url" class="block text-sm font-medium text-gray-700">圖片網址 (Image URL) <span class="text-gray-400">(選填)</span></label>
+                        <input type="url" id="item-image-url" 
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                            placeholder="https://example.com/product.jpg">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full md:w-auto px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                        💾 加入清單
+                    </button>
+                </form>
+            </section>
+
+            <!-- 購物清單 -->
+            <section>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">必買項目清單</h2>
+
+                <!-- 篩選/分組選單 -->
+                <div class="mb-4 flex space-x-4">
+                    <button id="filter-all" class="px-3 py-1 text-sm rounded-full bg-blue-500 text-white shadow">全部項目</button>
+                    <button id="filter-unbought" class="px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300">未購買</button>
+                    <button id="filter-bought" class="px-3 py-1 text-sm rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300">已購買</button>
+                </div>
+                
+                <div id="shopping-list-container" class="space-y-4">
+                    <!-- 清單將透過 JavaScript 渲染到這裡 -->
+                    <p id="loading-message" class="text-center text-gray-500">載入中...</p>
+                    <p id="empty-message" class="text-center text-gray-500 hidden">清單是空的，快新增一些項目吧！</p>
+                </div>
+            </section>
+
+            <!-- 錯誤訊息/Modal (非 alert) -->
+            <div id="message-box" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+                    <h3 id="message-title" class="text-xl font-bold text-red-600 mb-3">錯誤</h3>
+                    <p id="message-content" class="text-gray-700 mb-4">發生了一個錯誤。</p>
+                    <button id="message-close" class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">確認</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 載入 Firebase SDK -->
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set Firebase Debug Log Level
+        setLogLevel('Debug');
+
+        // --- 全域變數與 Firebase 初始化 ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth;
+        let userId = null;
+        let shoppingItems = [];
+        let currentFilter = 'all';
+
+        // 預設匯率 (1 JPY = X TWD)
+        let exchangeRate = 0.22;
+        const EXCHANGE_RATE_KEY = 'exchangeRate';
+
+        // UI Elements
+        const listContainer = document.getElementById('shopping-list-container');
+        const form = document.getElementById('add-item-form');
+        const rateInput = document.getElementById('exchange-rate');
+        const totalSpentElement = document.getElementById('total-spent');
+        const loadingMessage = document.getElementById('loading-message');
+        const emptyMessage = document.getElementById('empty-message');
+
+        // Modal Elements
+        const messageBox = document.getElementById('message-box');
+        const messageTitle = document.getElementById('message-title');
+        const messageContent = document.getElementById('message-content');
+        const messageClose = document.getElementById('message-close');
+        
+        // Filter Buttons
+        const filterButtons = {
+            'all': document.getElementById('filter-all'),
+            'unbought': document.getElementById('filter-unbought'),
+            'bought': document.getElementById('filter-bought'),
+        };
+
+        // --- 輔助函數 ---
+
+        /** 顯示自訂訊息框 (取代 alert) */
+        function showMessage(title, content, isError = true) {
+            messageTitle.textContent = title;
+            messageContent.textContent = content;
+            messageTitle.className = `text-xl font-bold mb-3 ${isError ? 'text-red-600' : 'text-green-600'}`;
+            messageClose.className = `w-full px-4 py-2 text-white rounded-lg ${isError ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`;
+            messageBox.classList.remove('hidden');
+            messageBox.classList.add('flex');
+        }
+
+        messageClose.addEventListener('click', () => {
+            messageBox.classList.remove('flex');
+            messageBox.classList.add('hidden');
+        });
+
+        /** 匯率計算 */
+        function calculateTWD(jpyPrice, quantity) {
+            return (jpyPrice * quantity * exchangeRate).toFixed(2);
+        }
+
+        /** 獲取 Firestore 集合路徑 */
+        function getCollectionPath() {
+            if (!userId) {
+                console.error("User ID is not defined.");
+                // For development, use a fallback path
+                return `artifacts/${appId}/users/guest-user/must_buy_list`;
+            }
+            // Use private data path for the user's shopping list
+            return `artifacts/${appId}/users/${userId}/must_buy_list`;
+        }
+
+        // --- 數據持久化 (匯率) ---
+
+        /** 載入本地匯率 */
+        function loadExchangeRate() {
+            const savedRate = localStorage.getItem(EXCHANGE_RATE_KEY);
+            if (savedRate) {
+                exchangeRate = parseFloat(savedRate);
+                rateInput.value = exchangeRate.toString();
+            }
+        }
+
+        /** 儲存匯率 */
+        function saveExchangeRate(rate) {
+            exchangeRate = parseFloat(rate);
+            localStorage.setItem(EXCHANGE_RATE_KEY, exchangeRate.toString());
+            // 匯率變動時，需要重新渲染列表以更新價格
+            renderList();
+            calculateTotalSpent(shoppingItems);
+        }
+
+        // 監聽匯率輸入框變化
+        rateInput.addEventListener('change', (e) => {
+            const newRate = parseFloat(e.target.value);
+            if (newRate > 0) {
+                saveExchangeRate(newRate);
+            } else {
+                e.target.value = exchangeRate; // Revert if invalid
+                showMessage('錯誤', '匯率必須是正數！', true);
+            }
+        });
+
+        // --- Firebase/Auth 設置 ---
+
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // 執行登入
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 監聽認證狀態變化
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('user-info').textContent = `使用者 ID: ${userId} (數據已即時儲存)`;
+                        startDataListener(); // 認證完成後開始監聽資料
+                    } else {
+                        // 匿名登入失敗或登出
+                        userId = null;
+                        document.getElementById('user-info').textContent = `登入失敗或未登入。`;
+                        loadingMessage.textContent = '請檢查登入狀態...';
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                loadingMessage.textContent = `Firebase 錯誤：${error.code}`;
+                showMessage('系統錯誤', 'Firebase 初始化失敗，請檢查網路或設定。', true);
+            }
+        }
+
+        // --- Firestore 數據操作 (CRUD) ---
+
+        /** 監聽 Firestore 數據變化 */
+        function startDataListener() {
+            if (!db || !userId) return;
+
+            const listCollectionRef = collection(db, getCollectionPath());
+            
+            // 使用 onSnapshot 實現實時監聽
+            onSnapshot(listCollectionRef, (snapshot) => {
+                loadingMessage.classList.add('hidden');
+                
+                // 將 Firestore 文件轉換為 JavaScript 對象
+                const items = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                shoppingItems = items;
+                
+                // 重新渲染清單
+                renderList();
+                calculateTotalSpent(items);
+
+                if (items.length === 0) {
+                    emptyMessage.classList.remove('hidden');
+                } else {
+                    emptyMessage.classList.add('hidden');
+                }
+
+            }, (error) => {
+                console.error("Firestore Listener Error:", error);
+                showMessage('資料庫錯誤', `無法監聽清單資料: ${error.message}`, true);
+            });
+        }
+
+        /** 新增項目 */
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!userId) {
+                showMessage('錯誤', '請先完成使用者認證。', true);
+                return;
+            }
+
+            const name = document.getElementById('item-name').value.trim();
+            const jpyPrice = parseInt(document.getElementById('item-jpy').value, 10);
+            const dayPlanned = document.getElementById('item-day').value.trim();
+            const quantity = parseInt(document.getElementById('item-quantity').value, 10) || 1;
+            // 新增：圖片網址
+            const imageUrl = document.getElementById('item-image-url').value.trim();
+
+
+            if (!name || jpyPrice <= 0) {
+                showMessage('錯誤', '名稱和正數價格為必填項目。', true);
+                return;
+            }
+
+            try {
+                const newItem = {
+                    name,
+                    jpyPrice,
+                    quantity,
+                    dayPlanned: dayPlanned || '未排定',
+                    isBought: false,
+                    createdAt: Date.now(),
+                    imageUrl: imageUrl // 儲存圖片網址
+                };
+
+                const listCollectionRef = collection(db, getCollectionPath());
+                await addDoc(listCollectionRef, newItem);
+                
+                form.reset();
+                document.getElementById('item-day').value = 'Day 1'; // Reset default day
+                document.getElementById('item-quantity').value = '1'; // Reset default quantity
+                
+                showMessage('成功', '項目已新增到您的清單！', false);
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showMessage('新增失敗', `無法新增項目: ${error.message}`, true);
+            }
+        });
+
+        /** 更新項目 (標記購買狀態) */
+        async function toggleBought(id, isBought) {
+            if (!userId) return;
+            try {
+                const itemRef = doc(db, getCollectionPath(), id);
+                await updateDoc(itemRef, {
+                    isBought: !isBought
+                });
+            } catch (error) {
+                console.error("Error updating document: ", error);
+                showMessage('更新失敗', `無法更新購買狀態: ${error.message}`, true);
+            }
+        }
+
+        /** 刪除項目 */
+        async function deleteItem(id) {
+            if (!userId) return;
+            try {
+                const itemRef = doc(db, getCollectionPath(), id);
+                await deleteDoc(itemRef);
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                showMessage('刪除失敗', `無法刪除項目: ${error.message}`, true);
+            }
+        }
+
+        // --- 渲染與總覽計算 ---
+
+        /** 計算已購買總花費 */
+        function calculateTotalSpent(items) {
+            let total = 0;
+            items.forEach(item => {
+                if (item.isBought) {
+                    total += item.jpyPrice * item.quantity * exchangeRate;
+                }
+            });
+            totalSpentElement.textContent = `TWD ${total.toFixed(2).toLocaleString('en-US')}`;
+        }
+
+        /** 渲染單一項目 */
+        function renderItem(item) {
+            const twdPrice = calculateTWD(item.jpyPrice, item.quantity);
+            const statusClass = item.isBought ? 'bg-green-100 border-green-400' : 'bg-white border-gray-200';
+            const textClass = item.isBought ? 'text-gray-500 line-through' : 'text-gray-800';
+            
+            // 處理圖片顯示
+            const imageContent = item.imageUrl ? 
+                `<img src="${item.imageUrl}" 
+                      alt="${item.name}" 
+                      class="w-12 h-12 object-cover rounded-md mr-4 flex-shrink-0 border border-gray-300 shadow-sm"
+                      onerror="this.onerror=null; this.src='https://placehold.co/48x48/CCCCCC/FFFFFF?text=No+Pic';">`
+                : `<div class="w-12 h-12 rounded-md bg-gray-200 text-gray-500 flex items-center justify-center text-xl mr-4 flex-shrink-0" title="無圖片">🛒</div>`; // 使用購物車 Emoji 作為預設圖標
+
+            
+            const itemElement = document.createElement('div');
+            itemElement.className = `flex items-center justify-between p-4 rounded-lg shadow-md transition duration-150 ease-in-out ${statusClass}`;
+            
+            itemElement.innerHTML = `
+                <!-- Checkbox & Item Info -->
+                <div class="flex items-center min-w-0 flex-grow mr-4">
+                    <input type="checkbox" id="check-${item.id}" ${item.isBought ? 'checked' : ''}
+                        class="form-checkbox h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 mr-4 flex-shrink-0"
+                        onclick="window.toggleBought('${item.id}', ${item.isBought})">
+                    
+                    ${imageContent} <!-- 插入圖片或預設圖標 -->
+
+                    <div class="min-w-0">
+                        <p class="text-lg font-bold truncate ${textClass}" title="${item.name}">${item.name}</p>
+                        <p class="text-xs font-semibold text-blue-600 mt-1">${item.dayPlanned}</p>
+                    </div>
+                </div>
+
+                <!-- Price & Actions -->
+                <div class="flex items-center space-x-4 flex-shrink-0">
+                    <div class="text-right">
+                        <p class="text-sm font-medium ${textClass}">
+                            ${item.quantity} x JPY ${item.jpyPrice.toLocaleString('en-US')}
+                        </p>
+                        <p class="text-base font-bold text-red-600">
+                            TWD ${twdPrice.toLocaleString('en-US')}
+                        </p>
+                    </div>
+                    
+                    <button class="text-gray-400 hover:text-red-500 transition duration-150 ease-in-out" 
+                        title="刪除"
+                        onclick="window.deleteItem('${item.id}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            return itemElement;
+        }
+        
+        /** 渲染清單 (包含篩選和分組) */
+        function renderList() {
+            listContainer.innerHTML = '';
+            
+            // 根據 currentFilter 篩選項目
+            let filteredItems = shoppingItems;
+            if (currentFilter === 'unbought') {
+                filteredItems = shoppingItems.filter(item => !item.isBought);
+            } else if (currentFilter === 'bought') {
+                filteredItems = shoppingItems.filter(item => item.isBought);
+            }
+            
+            if (filteredItems.length === 0) {
+                 emptyMessage.classList.remove('hidden');
+                 return;
+            } else {
+                 emptyMessage.classList.add('hidden');
+            }
+            
+            // 依據 'Day' 分組並排序
+            const groupedByDay = filteredItems.reduce((acc, item) => {
+                const day = item.dayPlanned || '未排定';
+                if (!acc[day]) {
+                    acc[day] = [];
+                }
+                acc[day].push(item);
+                return acc;
+            }, {});
+
+            // 取得所有分組的 Key (Day 1, Day 2, Day N...)
+            const dayKeys = Object.keys(groupedByDay).sort((a, b) => {
+                // 嘗試將 'Day N' 轉換為數字進行排序
+                const numA = parseInt(a.replace('Day', '').trim()) || Infinity;
+                const numB = parseInt(b.replace('Day', '').trim()) || Infinity;
+                if (numA !== Infinity && numB !== Infinity) {
+                    return numA - numB;
+                }
+                return a.localeCompare(b); // 其他名稱則依字母順序
+            });
+            
+            // 渲染分組後的清單
+            dayKeys.forEach(day => {
+                const dayGroup = document.createElement('div');
+                dayGroup.className = 'mb-6 p-4 bg-gray-100 rounded-lg shadow-inner';
+                
+                const dayHeader = document.createElement('h3');
+                dayHeader.className = 'text-xl font-bold text-gray-700 mb-4 border-b pb-2';
+                dayHeader.textContent = `行程日: ${day}`;
+                dayGroup.appendChild(dayHeader);
+                
+                const dayList = document.createElement('div');
+                dayList.className = 'space-y-3';
+                
+                // 渲染該組內的項目，未購買的排在前面
+                groupedByDay[day].sort((a, b) => a.isBought - b.isBought).forEach(item => {
+                    dayList.appendChild(renderItem(item));
+                });
+                
+                dayGroup.appendChild(dayList);
+                listContainer.appendChild(dayGroup);
+            });
+        }
+        
+        /** 設定篩選器 */
+        function setFilter(filter) {
+            currentFilter = filter;
+            // 更新按鈕樣式
+            Object.keys(filterButtons).forEach(key => {
+                if (key === filter) {
+                    filterButtons[key].classList.replace('bg-gray-200', 'bg-blue-500');
+                    filterButtons[key].classList.replace('text-gray-700', 'text-white');
+                    filterButtons[key].classList.add('shadow');
+                } else {
+                    filterButtons[key].classList.replace('bg-blue-500', 'bg-gray-200');
+                    filterButtons[key].classList.replace('text-white', 'text-gray-700');
+                    filterButtons[key].classList.remove('shadow');
+                }
+            });
+            renderList();
+        }
+
+        // --- 事件監聽器綁定 (需掛載到 window 以便 HTML 元素呼叫) ---
+        window.toggleBought = toggleBought;
+        window.deleteItem = deleteItem;
+        
+        filterButtons['all'].addEventListener('click', () => setFilter('all'));
+        filterButtons['unbought'].addEventListener('click', () => setFilter('unbought'));
+        filterButtons['bought'].addEventListener('click', () => setFilter('bought'));
+        
+        // --- 啟動應用程式 ---
+        
+        // 1. 載入本地匯率設定
+        loadExchangeRate();
+        
+        // 2. 初始化 Firebase & 認證
+        if (Object.keys(firebaseConfig).length > 0) {
+            initializeFirebase();
+        } else {
+            console.error("Firebase config is missing.");
+            loadingMessage.textContent = '無法初始化 Firebase，請確認設定。';
+            showMessage('設定錯誤', '缺少 Firebase 設定資訊。', true);
+        }
+
+    </script>
+</body>
+</html>
